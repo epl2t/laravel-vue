@@ -11,6 +11,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
-        // $this->call(UsersTableSeeder::class);
+	    DB::table('users')->insert([
+		    'id'=>1,
+		    'name' => 'Super Admin',
+		    'email' => 'admin@local.host',
+		    'password' => sha1(sha1('password7508')),
+	    ]);
     }
 }
