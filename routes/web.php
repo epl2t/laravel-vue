@@ -10,10 +10,6 @@
 | contains the "web" middleware group. Now create something great!
 |
 */
-
-Route::get('/', function () {
-	return view('welcome');
-});
 Route::prefix('api')->group(function() {
 	Route::post('/authorize', 'AuthController@index');
 	Route::get('/user/{id?}', 'UserController@getUser')->middleware('token-auth');
@@ -35,3 +31,7 @@ Route::prefix('api')->group(function() {
 	Route::put('/collection/{id}', 'CollectionController@updateCollection')->middleware('token-auth');
 
 });
+
+Route::get('/{vue_capture?}', function () {
+	return view('welcome');
+})->where('vue_capture', '[\/\w\.-]*');

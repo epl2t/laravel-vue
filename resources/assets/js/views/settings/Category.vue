@@ -1,11 +1,11 @@
 <template>
     <div>
     <ul>
-        <li v-for="e in tree.child" :data-id="e.id">
+        <li v-for="e in tree.child" :data-id="e.category_id">
             <span @click="showChild(e)" v-if="level<max_level && e.have_child!==false"><i class="fa" :class="{'fa-minus-square-o': (e.opened),'fa-plus-square-o': (!e.opened)}"></i></span><span v-else><i class="fa fa-minus-square-o"></i></span> <span @click.right="openContext(e,$event)"><i class="fa" :class="{'fa-folder-open-o': (e.opened),'fa-folder-o': (!e.opened)}"></i> {{e.name}}</span>
             <template v-if="e.loaded">
                 <div v-show="e.opened">
-                    <category :node="e.id" :level="level+1" @empty="onEmptyChild(e)"></category>
+                    <category :node="e.category_id" :level="level+1" @empty="onEmptyChild(e)"></category>
                 </div>
             </template>
         </li>
@@ -17,7 +17,7 @@
     </ul>
         <b-modal size="md" v-model="createModal" @ok="categorySave" @shown="focusInput">
             <template slot="modal-title">{{modalTitle}}</template>
-            <languages_select></languages_select>
+            <languages_select @language="onLanguageChanged" @default-language="onDefaultLanguage"></languages_select>
             <b-row>
                 <b-col>
                     <b-form-group>
@@ -40,7 +40,6 @@
 
 <script>
   import languages_select from './LanguagesSelect.vue';
-
     export default {
       name: 'category',
       props: ['node','level'],
@@ -64,7 +63,6 @@
       },
       data () {
         return {
-          selected:'ua',
           max_level: 2,
           tree: {child:{}},
           opened:true,
@@ -73,7 +71,6 @@
           viewMenu: false,
           menu_style: {},
           hideFn: () => {},
-          haveToHide: '',
           clicked_item: null,
           delete_disabled: false,
           add_disabled: false,
@@ -82,7 +79,10 @@
           editedID: false,
           name_invalid: false,
           nameInput: '',
-          modalTitle: ''
+          modalTitle: '',
+          current_language: null,
+          languages: {},
+          default_language: null
         }
       },
       methods: {
@@ -96,18 +96,35 @@
           this.name_invalid=false;
           this.modalTitle='Create new';
           this.viewMenu=false;
+          this.language=false;
+          this.languages={};
+          this.select_language=false;
+          this.current_language=this.default_language;
+          this.$eventHub.$emit('change-language', this.default_language);
         },
         edit() {
           if (this.edit_disabled)
           {
             return;
           }
-          this.nameInput=this.clicked_item.name;
+          if (this.editedID!=this.clicked_item.category_id)
+          {
+            console.log(this.clicked_item.name);
+            this.languages={};
+            this.current_language=this.default_language;
+            this.nameInput=this.clicked_item.name;
+            this.languages[this.current_language]={name:this.clicked_item.name};
+          }
+          else {
+            this.nameInput = this.languages[this.current_language].name;
+          }
+          this.$eventHub.$emit('change-language', this.current_language);
           this.createModal=true;
           this.name_invalid=false;
           this.modalTitle='Edit';
-          this.editedID=this.clicked_item.id;
+          this.editedID=this.clicked_item.category_id;
           this.viewMenu=false;
+          this.language=false;
         },
         deleteCategory()
         {
@@ -119,18 +136,27 @@
           this.viewMenu=false;
         },
         categorySave(event) {
+          var g=this.current_language;
           let method = '';
           let url = '';
           let parent_id='';
-          this.name_invalid = this.nameInput == '';
-          if (this.name_invalid) {
-            event.preventDefault();
-            return false;
+          this.languages[g]={'name':this.nameInput};
+          for( var key in this.languages ) {
+            var value=this.languages[key];
+            if (value.name=='')
+            {
+              this.name_invalid = true;
+              this.nameInput='';
+              this.current_language=key;
+              this.$eventHub.$emit('change-language', key);
+              event.preventDefault();
+              return false;
+            }
           }
           if (!this.editedID) {
             method = 'post';
             url = '/api/category';
-            parent_id=this.clicked_item.id;
+            parent_id=this.clicked_item.category_id;
           }
           else {
             method = 'put';
@@ -140,7 +166,7 @@
           let promise = axios({
             method: method,
             url: url,
-            data: {name: this.nameInput, parent_id: parent_id}
+            data: {names: this.languages, parent_id: parent_id}
           })
 
           return promise.then((data) => {
@@ -154,7 +180,7 @@
           {
           let promise = axios({
             method:'delete',
-            url:'/api/category/'+this.clicked_item.id,
+            url:'/api/category/'+this.clicked_item.category_id,
           })
 
           return promise.then((data) => {
@@ -167,9 +193,9 @@
         {
           this.clicked_item=item;
           this.viewMenu=true;
-          this.delete_disabled=!((this.level>=this.max_level || item.have_child===false) && item.id!=0);
+          this.delete_disabled=!((this.level>=this.max_level || item.have_child===false) && item.category_id!=0);
           this.add_disabled=(this.level>=this.max_level);
-          this.edit_disabled=(item.id==0);
+          this.edit_disabled=(item.category_id==0);
           this.$nextTick(function() {
             this.menu_style={
               left: event.clientX+'px', top: event.clientY+'px'
@@ -181,6 +207,31 @@
         },
         clickDocumentHandler (event) {
           this.viewMenu=false;
+        },
+        onLanguageChanged(e)
+        {
+          var g=this.current_language;
+          this.languages[g]={'name':this.nameInput};
+          this.current_language=e;
+            if (typeof (this.languages[this.current_language])=='undefined')
+            {
+              axios.get("/api/categories/",{params:{language_id:this.current_language,category_id:this.editedID}}).then(response =>{
+                var s=response.data.length==0?'':response.data[0].name;
+                this.nameInput=s;
+                this.languages[e]={'name':s};
+              }).catch(err =>{
+              })
+            }
+            else
+            {
+              var s=this.languages[this.current_language]['name']
+              this.nameInput=s;
+              this.languages[e]={'name':s};
+            }
+        },
+        onDefaultLanguage(e)
+        {
+          this.default_language=e;
         },
         onEmptyChild(item)
         {
@@ -194,14 +245,14 @@
           }
           item.opened=!item.opened;
           item.loaded=true;
-          Object.assign(item, {id:item.id+1});
-          Object.assign(item, {id:item.id-1});
+          Object.assign(item, {category_id:item.category_id+1});
+          Object.assign(item, {category_id:item.category_id-1});
         },
         getCategories (parent_id)
         {
           if (parent_id==-1)
           {
-            this.tree={child:[{name:'Entire site',id:'0',parent_id:-1,opened:true,loaded:true}]};
+            this.tree={child:[{name:'Entire site',category_id:'0',parent_id:-1,opened:true,loaded:true}]};
             return;
           }
           axios.get("/api/categories/",{params:{parent_id:parent_id}}).then((data) => {

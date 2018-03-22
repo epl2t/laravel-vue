@@ -11,6 +11,7 @@ import Languages from '../views/settings/Languages'
 import Authors from '../views/settings/Authors'
 import Categories from '../views/settings/Categories'
 import Collections from '../views/settings/Collections'
+import Images from '../views/images/Images'
 
 import Colors from '../views/theme/Colors'
 import Typography from '../views/theme/Typography'
@@ -60,7 +61,7 @@ import Register from '../views/pages/Register'
 Vue.use(Router)
 
 export default new Router({
-  mode: 'hash', // Demo is living in GitHub.io, so required!
+  mode: 'history', // Demo is living in GitHub.io, so required!
   linkActiveClass: 'open active',
   scrollBehavior: () => ({ y: 0 }),
 
@@ -76,6 +77,12 @@ export default new Router({
           path: 'dashboard',
           name: 'Dashboard',
           component: Dashboard,
+          meta: {auth: true},
+        },
+        {
+          path: 'images/upload',
+          name: 'Images',
+          component: Images,
           meta: {auth: true},
         },
 

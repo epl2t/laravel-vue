@@ -45,6 +45,22 @@ export default {
         },
       ]
     },
+
+    {
+      title: true,
+      name: 'Images management',
+      class: '',
+      wrapper: {
+        element: '',
+        attributes: {}
+      }
+    },
+
+    {
+      name: 'Images',
+      url: '/images/upload',
+      icon: 'icon-camera',
+    },
     {
       title: true,
       name: 'Theme',
